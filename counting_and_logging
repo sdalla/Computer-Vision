@@ -1,0 +1,78 @@
+import numpy as np
+import cv2
+import csv
+import sys
+
+#INPUT COLOR MIN AND MAX 
+COLOR_MIN = np.array([45, 60, 120], np.uint8)
+COLOR_MAX = np.array([65, 80, 140], np.uint8)
+#Dirt color
+DIRT_MIN = np.array([10, 10, 100], np.uint8) 
+DIRT_MAX = np.array([20, 30, 200], np.uint8)
+
+#cap = cv2.VideoCapture('Video_Data/GOPR5503.mp4')
+cap = cv2.VideoCapture(sys.argv[1])
+fps = cap.get(cv2.CAP_PROP_FPS)
+print("fps is "+str(fps))
+
+percent_green = 0
+percent_dirt = 0
+l_green = ["Percent Green Thresh"+np.array_str(COLOR_MIN)+np.array_str(COLOR_MAX)]
+l_dirt = ["Percent Dirt Thresh"+np.array_str(DIRT_MIN)+np.array_str(DIRT_MAX)]
+
+
+while(cap.isOpened()):
+	ret, frame = cap.read()
+	height, width, channels = frame.shape
+	num_pix = height*width
+	if(not ret):
+		print("Done!")
+		break
+
+	# Convert BGR to HSV
+	hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+	dst = cv2.inRange(hsv, COLOR_MIN, COLOR_MAX)
+	dst_dirt = cv2.inRange(hsv, DIRT_MIN, DIRT_MAX)
+	
+	# Bitwise-AND mask and original image
+	res = cv2.bitwise_and(frame,frame, mask = dst)
+	res_dirt = cv2.bitwise_and(frame, frame, mask = dst_dirt)
+
+	cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
+	cv2.namedWindow('dst', cv2.WINDOW_NORMAL)
+	cv2.namedWindow('dst_dirt', cv2.WINDOW_NORMAL)
+	cv2.namedWindow('res', cv2.WINDOW_NORMAL)
+	cv2.namedWindow('res_dirt', cv2.WINDOW_NORMAL)
+		
+	cv2.imshow('frame',frame)
+	
+	cv2.imshow('dst',dst)
+	cv2.imshow('dst_dirt',dst_dirt)
+	cv2.imshow('res',res)
+	cv2.imshow('res_dirt', res_dirt)
+		
+	no_green = cv2.countNonZero(dst)
+	no_dirt = cv2.countNonZero(dst_dirt)
+	percent_green = 100*no_green/ float(num_pix)
+	percent_dirt = 100*no_dirt/ float(num_pix)
+
+	
+	l_green.append(percent_green)
+	l_dirt.append(percent_dirt)
+		
+	if cv2.waitKey(1) & 0xFF == ord('q'):
+		break
+
+cap.release()
+cv2.destroyAllWindows()
+print(len(l_green))
+print(len(l_dirt))
+
+#Outputting into csv
+#with open('output.csv', 'wb') as csvfile:
+with open(sys.argv[2], 'wb') as csvfile:
+		writer = csv.writer(csvfile) 
+		rows = zip(l_green, l_dirt)
+		for row in rows:
+			writer.writerow(row)
+		csvfile.close()
